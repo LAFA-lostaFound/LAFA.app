@@ -1,0 +1,2448 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LAFA - Lost & Found Application</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'kanit': ['Kanit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <style>
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .slide-in { animation: slideIn 0.3s ease-out; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .animate-fade-in { animation: messageFadeIn 0.4s ease-out; }
+        @keyframes messageFadeIn { 
+            from { opacity: 0; transform: translateY(15px) scale(0.95); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
+        .animate-spin { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-kanit">
+    <!-- Header -->
+    <header class="bg-white shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center shadow-lg">
+                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-gray-800">LAFA</h1>
+                        <p class="text-sm text-gray-500">Lost & Found Application</p>
+                    </div>
+                </div>
+                
+                <nav class="hidden md:flex space-x-4 ml-auto mr-4">
+                    <button onclick="showPage('home')" class="nav-btn text-gray-600 hover:text-blue-600 font-medium text-sm">หน้าแรก</button>
+                    <button onclick="showPage('report-lost')" class="nav-btn text-gray-600 hover:text-blue-600 font-medium text-sm">แจ้งของหาย</button>
+                    <button onclick="showPage('report-found')" class="nav-btn text-gray-600 hover:text-blue-600 font-medium text-sm">แจ้งเจอของ</button>
+                    <button onclick="showPage('all-items')" class="nav-btn text-gray-600 hover:text-blue-600 font-medium text-sm">รายการทั้งหมด</button>
+                </nav>
+
+                <div class="flex items-center space-x-4">
+                    <div id="auth-section">
+                        <button onclick="showLoginModal()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">เข้าสู่ระบบ</button>
+                    </div>
+                    <div id="user-menu" class="hidden relative">
+                        <button onclick="toggleUserMenu()" class="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
+                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                                <span id="user-initial" class="text-blue-600 font-semibold"></span>
+                            </div>
+                            <span id="user-name"></span>
+                        </button>
+                        <div id="user-dropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg py-2">
+                            <button onclick="showPage('profile')" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">โพรไฟล์</button>
+                            <button id="dashboard-dropdown" onclick="showPage('teacher-dashboard')" class="hidden block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">แดชบอร์ด</button>
+                            <button onclick="logout()" class="block w-full text-left px-4 py-2 text-gray-700 hover:bg-gray-100">ออกจากระบบ</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <!-- Home Page -->
+        <div id="home-page" class="page">
+            <!-- Hero Section -->
+            <section class="bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-2xl p-8 mb-8">
+                <div class="text-center">
+                    <h2 class="text-4xl font-bold mb-4">LAFA: แอปแจ้งของหายในโรงเรียน</h2>
+                    <p class="text-xl mb-8">ระบบจัดการของหายและของที่พบในโรงเรียน ช่วยให้นักเรียนและครูสามารถค้นหาและคืนของได้อย่างมีประสิทธิภาพ</p>
+                    
+                    <div class="flex justify-center items-center space-x-8 mt-8">
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-2">
+                                <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
+                                </svg>
+                            </div>
+                            <p class="text-sm">แจ้งของหาย</p>
+                        </div>
+                        <div class="w-8 h-8 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-2">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </div>
+                            <p class="text-sm">ค้นหา</p>
+                        </div>
+                        <div class="w-8 h-8 flex items-center justify-center">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                            </svg>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mb-2">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                </svg>
+                            </div>
+                            <p class="text-sm">พบแล้ว</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Services Section -->
+            <section class="mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">บริการของเรา</h3>
+                <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="bg-red-100 text-black p-6 rounded-xl shadow-lg hover:shadow-xl transition cursor-pointer transform hover:scale-105 text-center" onclick="showPage('report-lost')">
+                        <div class="w-16 h-16 bg-red-200 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <svg class="w-8 h-8 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">แจ้งของหาย</h4>
+                        <p class="text-gray-700">แจ้งเมื่อคุณทำของหาย</p>
+                    </div>
+                    
+                    <div class="bg-green-100 text-black p-6 rounded-xl shadow-lg hover:shadow-xl transition cursor-pointer transform hover:scale-105 text-center" onclick="showPage('report-found')">
+                        <div class="w-16 h-16 bg-green-200 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <svg class="w-8 h-8 text-green-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">แจ้งเจอของ</h4>
+                        <p class="text-gray-700">แจ้งเมื่อคุณเจอของ</p>
+                    </div>
+                    
+                    <div class="bg-blue-100 text-black p-6 rounded-xl shadow-lg hover:shadow-xl transition cursor-pointer transform hover:scale-105 text-center" onclick="showPage('all-items')">
+                        <div class="w-16 h-16 bg-blue-200 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <svg class="w-8 h-8 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">รายการทั้งหมด</h4>
+                        <p class="text-gray-700">ดูรายการของหายทั้งหมด</p>
+                    </div>
+                    
+                    <div class="bg-purple-100 text-black p-6 rounded-xl shadow-lg hover:shadow-xl transition cursor-pointer transform hover:scale-105 text-center" onclick="showPage('profile')">
+                        <div class="w-16 h-16 bg-purple-200 rounded-full flex items-center justify-center mb-4 mx-auto">
+                            <svg class="w-8 h-8 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                            </svg>
+                        </div>
+                        <h4 class="text-xl font-bold mb-2">โพรไฟล์</h4>
+                        <p class="text-gray-700">จัดการข้อมูลส่วนตัว</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Statistics Section -->
+            <section class="mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">สถิติการใช้งาน</h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <!-- Top Lost Locations -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h4 class="text-lg font-semibold text-red-600 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                            </svg>
+                            จุดที่หายมากที่สุด (5 อันดับ)
+                        </h4>
+                        <div id="top-lost-locations" class="space-y-3">
+                            <div class="flex items-center justify-center py-8">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-red-600"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Monthly Statistics -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <h4 class="text-lg font-semibold text-blue-600 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                            </svg>
+                            สถิติรายเดือน
+                        </h4>
+                        <div id="monthly-stats" class="space-y-4">
+                            <div class="flex items-center justify-center py-8">
+                                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Recent Items -->
+            <section>
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center">รายการล่าสุด</h3>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <h4 class="text-lg font-semibold text-red-600 mb-4">ของหาย</h4>
+                        <div id="recent-lost-items" class="space-y-4">
+                            <!-- Recent lost items will be loaded here -->
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-semibold text-green-600 mb-4">ของที่พบ</h4>
+                        <div id="recent-found-items" class="space-y-4">
+                            <!-- Recent found items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Report Lost Page -->
+        <div id="report-lost-page" class="page hidden">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex items-center mb-8">
+                    <button onclick="showPage('home')" class="mr-4 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <h2 class="text-3xl font-bold text-gray-800">แจ้งของหาย</h2>
+                </div>
+                <form id="lost-item-form" class="bg-white p-8 rounded-xl shadow-lg">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อสิ่งของ *</label>
+                            <input type="text" id="lost-item-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">หมวดหมู่ *</label>
+                            <select id="lost-category" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">เลือกหมวดหมู่</option>
+                                <option value="เครื่องเขียน">เครื่องเขียน</option>
+                                <option value="อุปกรณ์การเรียน">อุปกรณ์การเรียน</option>
+                                <option value="เสื้อผ้า">เสื้อผ้า</option>
+                                <option value="อิเล็กทรอนิกส์">อิเล็กทรอนิกส์</option>
+                                <option value="กระเป๋า">กระเป๋า</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">รายละเอียด</label>
+                        <textarea id="lost-description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="อธิบายลักษณะของสิ่งของ"></textarea>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">สถานที่หาย *</label>
+                        <input type="text" id="lost-location" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="เช่น ห้องเรียน 101, โรงอาหาร">
+                    </div>
+                    
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">อัปโหลดรูป</label>
+                        <div class="relative">
+                            <input type="file" id="lost-image" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleImageUpload(this, 'lost-image-preview')">
+                            <div id="lost-image-upload" class="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer">
+                                <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <p class="text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ</p>
+                                <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 1MB)</p>
+                            </div>
+                            <div id="lost-image-preview" class="hidden w-full h-32 border-2 border-gray-300 rounded-lg overflow-hidden relative">
+                                <img class="w-full h-full object-cover" alt="Preview">
+                                <button type="button" onclick="removeImage('lost-image', 'lost-image-preview')" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition z-20">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 mt-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ-สกุล *</label>
+                            <input type="text" id="lost-contact-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">เบอร์โทร</label>
+                            <input type="tel" id="lost-contact-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full mt-8 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 transition font-semibold">แจ้งของหาย</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Report Found Page -->
+        <div id="report-found-page" class="page hidden">
+            <div class="max-w-2xl mx-auto">
+                <div class="flex items-center mb-8">
+                    <button onclick="showPage('home')" class="mr-4 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <h2 class="text-3xl font-bold text-gray-800">แจ้งเจอของ</h2>
+                </div>
+                <form id="found-item-form" class="bg-white p-8 rounded-xl shadow-lg">
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อสิ่งของ *</label>
+                            <input type="text" id="found-item-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">หมวดหมู่ *</label>
+                            <select id="found-category" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                <option value="">เลือกหมวดหมู่</option>
+                                <option value="เครื่องเขียน">เครื่องเขียน</option>
+                                <option value="อุปกรณ์การเรียน">อุปกรณ์การเรียน</option>
+                                <option value="เสื้อผ้า">เสื้อผ้า</option>
+                                <option value="อิเล็กทรอนิกส์">อิเล็กทรอนิกส์</option>
+                                <option value="กระเป๋า">กระเป๋า</option>
+                                <option value="อื่นๆ">อื่นๆ</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">รายละเอียด</label>
+                        <textarea id="found-description" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="อธิบายลักษณะของสิ่งของ"></textarea>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 mt-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">สถานที่พบ *</label>
+                            <input type="text" id="found-location" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="เช่น ห้องเรียน 101, โรงอาหาร">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">สถานที่ฝากไว้ *</label>
+                            <input type="text" id="found-storage" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="เช่น ห้องครู, ห้องรักษาความปลอดภัย">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">อัปโหลดรูป</label>
+                        <div class="relative">
+                            <input type="file" id="found-image" accept="image/jpeg,image/jpg,image/png,image/gif,image/webp" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleImageUpload(this, 'found-image-preview')">
+                            <div id="found-image-upload" class="w-full h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer">
+                                <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                </svg>
+                                <p class="text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ</p>
+                                <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 1MB)</p>
+                            </div>
+                            <div id="found-image-preview" class="hidden w-full h-32 border-2 border-gray-300 rounded-lg overflow-hidden relative">
+                                <img class="w-full h-full object-cover" alt="Preview">
+                                <button type="button" onclick="removeImage('found-image', 'found-image-preview')" class="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition z-20">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-6 mt-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ-สกุล *</label>
+                            <input type="text" id="found-contact-name" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">เบอร์โทร</label>
+                            <input type="tel" id="found-contact-phone" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full mt-8 bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 transition font-semibold">แจ้งเจอของ</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- All Items Page -->
+        <div id="all-items-page" class="page hidden">
+            <div class="flex items-center mb-8">
+                <button onclick="showPage('home')" class="mr-4 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                </button>
+                <h2 class="text-3xl font-bold text-gray-800">รายการทั้งหมด</h2>
+            </div>
+            
+            <!-- Search and Filter -->
+            <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-6 rounded-xl shadow-lg mb-8 border border-blue-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
+                    </svg>
+                    ค้นหาและกรองข้อมูล
+                </h3>
+                <div class="grid md:grid-cols-3 gap-4">
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                        </div>
+                        <input type="text" id="search-input" placeholder="ค้นหาสิ่งของ..." class="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm">
+                    </div>
+                    <div>
+                        <select id="status-filter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm">
+                            <option value="">ทุกสถานะ</option>
+                            <option value="lost">ของหาย</option>
+                            <option value="found">พบแล้ว</option>
+                            <option value="returned">คืนแล้ว</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select id="category-filter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm">
+                            <option value="">ทุกหมวดหมู่</option>
+                            <option value="เครื่องเขียน">เครื่องเขียน</option>
+                            <option value="อุปกรณ์การเรียน">อุปกรณ์การเรียน</option>
+                            <option value="เสื้อผ้า">เสื้อผ้า</option>
+                            <option value="อิเล็กทรอนิกส์">อิเล็กทรอนิกส์</option>
+                            <option value="กระเป๋า">กระเป๋า</option>
+                            <option value="อื่นๆ">อื่นๆ</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Items Grid -->
+            <div id="items-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Items will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profile-page" class="page hidden">
+            <div class="max-w-4xl mx-auto">
+                <div class="flex items-center mb-8">
+                    <button onclick="showPage('home')" class="mr-4 p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-full transition">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                    </button>
+                    <h2 class="text-3xl font-bold text-gray-800">โพรไฟล์</h2>
+                </div>
+                
+                <div class="grid md:grid-cols-3 gap-8">
+                    <!-- User Info -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg">
+                        <div class="text-center">
+                            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <span id="profile-initial" class="text-2xl font-bold text-blue-600"></span>
+                            </div>
+                            <h3 id="profile-name" class="text-xl font-semibold text-gray-800"></h3>
+                            <p id="profile-email" class="text-gray-600"></p>
+                            <span id="profile-role" class="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- User's Items -->
+                    <div class="md:col-span-2">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-4">รายการของคุณ</h3>
+                        <div id="user-items" class="space-y-4">
+                            <!-- User's items will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Teacher Dashboard -->
+        <div id="teacher-dashboard" class="page hidden">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">แดชบอร์ดครู</h2>
+            
+            <!-- Statistics Cards -->
+            <div class="grid md:grid-cols-4 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600">ของหาย</p>
+                            <p id="lost-count" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600">พบแล้ว</p>
+                            <p id="found-count" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600">คืนแล้ว</p>
+                            <p id="returned-count" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-lg">
+                    <div class="flex items-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                            <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                            </svg>
+                        </div>
+                        <div class="ml-4">
+                            <p class="text-sm text-gray-600">ผู้ใช้งาน</p>
+                            <p id="users-count" class="text-2xl font-bold text-gray-800">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Management Tabs -->
+            <div class="bg-white rounded-xl shadow-lg">
+                <div class="border-b border-gray-200">
+                    <nav class="flex space-x-8 px-6">
+                        <button onclick="showTab('lost-items')" class="tab-btn py-4 px-2 border-b-2 border-blue-600 text-blue-600 font-medium">ของหาย</button>
+                        <button onclick="showTab('found-items')" class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">ของที่พบ</button>
+                        <button onclick="showTab('returned-items')" class="tab-btn py-4 px-2 border-b-2 border-transparent text-gray-500 hover:text-gray-700">คืนแล้ว</button>
+                    </nav>
+                </div>
+                
+                <div class="p-6">
+                    <div id="lost-items-tab" class="tab-content">
+                        <div id="teacher-lost-items" class="space-y-4">
+                            <!-- Lost items management will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div id="found-items-tab" class="tab-content hidden">
+                        <div id="teacher-found-items" class="space-y-4">
+                            <!-- Found items management will be loaded here -->
+                        </div>
+                    </div>
+                    
+                    <div id="returned-items-tab" class="tab-content hidden">
+                        <div id="teacher-returned-items" class="space-y-4">
+                            <!-- Returned items management will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Login Modal -->
+    <div id="login-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-8 max-w-md w-full mx-4">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบ / สมัครสมาชิก</h3>
+                <button onclick="closeLoginModal()" class="text-gray-400 hover:text-gray-600 p-2 rounded-full hover:bg-gray-100 transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="mb-6">
+                <div class="flex bg-gray-100 rounded-lg p-1">
+                    <button onclick="switchAuthMode('login')" id="login-tab" class="flex-1 py-2 px-4 rounded-md bg-white text-gray-800 font-medium shadow-sm">เข้าสู่ระบบ</button>
+                    <button onclick="switchAuthMode('register')" id="register-tab" class="flex-1 py-2 px-4 rounded-md text-gray-600">สมัครสมาชิก</button>
+                </div>
+            </div>
+            
+            <form id="auth-form">
+                <div id="name-field" class="hidden mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ชื่อ-สกุล</label>
+                    <input type="text" id="auth-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">อีเมล</label>
+                    <input type="email" id="auth-email" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">รหัสผ่าน</label>
+                    <input type="password" id="auth-password" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                </div>
+                
+                <div id="role-field" class="hidden mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">ประเภทผู้ใช้งาน</label>
+                    <select id="auth-role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="student">นักเรียน</option>
+                        <option value="teacher">ครู</option>
+                    </select>
+                </div>
+                
+                <button type="submit" id="auth-submit" class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold">เข้าสู่ระบบ</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Item Detail Modal -->
+    <div id="item-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-xl max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 id="modal-item-name" class="text-2xl font-bold text-gray-800"></h3>
+                    <button onclick="closeItemModal()" class="text-gray-400 hover:text-gray-600">
+                        <span class="text-2xl">×</span>
+                    </button>
+                </div>
+                
+                <div id="modal-item-image" class="mb-4"></div>
+                
+                <div class="grid md:grid-cols-2 gap-4 mb-6">
+                    <div>
+                        <p class="text-sm text-gray-600">หมวดหมู่</p>
+                        <p id="modal-item-category" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">สถานะ</p>
+                        <span id="modal-item-status" class="inline-block px-2 py-1 rounded-full text-sm"></span>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">สถานที่พบ</p>
+                        <p id="modal-item-location" class="font-medium"></p>
+                    </div>
+                    <div id="modal-storage-section" class="hidden">
+                        <p class="text-sm text-gray-600">สถานที่ฝากไว้</p>
+                        <p id="modal-item-storage" class="font-medium"></p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">วันที่</p>
+                        <p id="modal-item-date" class="font-medium"></p>
+                    </div>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-sm text-gray-600 mb-2">รายละเอียด</p>
+                    <p id="modal-item-description" class="text-gray-800"></p>
+                </div>
+                
+                <div class="mb-6">
+                    <p class="text-sm text-gray-600 mb-2">ข้อมูลติดต่อ</p>
+                    <p id="modal-item-contact" class="font-medium"></p>
+                </div>
+                
+                <!-- Chat Section -->
+                <div id="chat-section" class="border-t pt-6">
+                    <h4 class="text-lg font-semibold mb-4 flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        แชต
+                    </h4>
+                    <div id="chat-messages" class="bg-gray-50 rounded-lg p-4 h-48 overflow-y-auto mb-4 border border-gray-200">
+                        <div class="flex items-center justify-center h-full">
+                            <div class="text-center">
+                                <svg class="w-8 h-8 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                </svg>
+                                <p class="text-gray-500 text-sm">กำลังโหลดข้อความ...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="chat-input-section" class="flex space-x-2">
+                        <input type="text" id="chat-input" placeholder="พิมพ์ข้อความ..." class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" maxlength="500">
+                        <button onclick="sendMessage()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium flex items-center">
+                            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                            ส่ง
+                        </button>
+                    </div>
+                    <div id="chat-login-prompt" class="hidden text-center py-6 bg-gray-50 rounded-lg border border-gray-200">
+                        <svg class="w-12 h-12 text-gray-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <p class="text-gray-600 mb-4">กรุณาเข้าสู่ระบบเพื่อใช้งานแชต</p>
+                        <button onclick="showLoginModal()" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition font-medium">เข้าสู่ระบบ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification -->
+    <div id="notification" class="hidden fixed top-4 right-4 z-50 slide-in">
+        <div class="bg-white rounded-lg shadow-lg p-4 max-w-sm">
+            <div class="flex items-center">
+                <div id="notification-icon" class="w-8 h-8 rounded-full flex items-center justify-center mr-3"></div>
+                <div>
+                    <p id="notification-message" class="font-medium text-gray-800"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAsWIFGlCuCo1aXTc0GZzYZGYZzH-3p6Es",
+            authDomain: "lafa-database.firebaseapp.com",
+            projectId: "lafa-database",
+            storageBucket: "lafa-database.firebasestorage.app",
+            messagingSenderId: "761007020068",
+            appId: "1:761007020068:web:017b1fdced5dbe7441e0b1",
+            measurementId: "G-HS8ENRDSVG"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        
+        // Test Firebase connection
+        console.log('Firebase initialized:', {
+            auth: !!auth,
+            firestore: !!db
+        });
+
+        let currentUser = null;
+        let authMode = 'login';
+        let currentItemId = null;
+        let chatListener = null;
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function() {
+            setupEventListeners();
+            
+            // Listen for auth state changes
+            auth.onAuthStateChanged(async (user) => {
+                if (user) {
+                    // User is signed in
+                    try {
+                        const userDoc = await db.collection('users').doc(user.uid).get();
+                        if (userDoc.exists) {
+                            currentUser = {
+                                uid: user.uid,
+                                email: user.email,
+                                ...userDoc.data()
+                            };
+                        } else {
+                            // Create user document if it doesn't exist
+                            currentUser = {
+                                uid: user.uid,
+                                email: user.email,
+                                name: user.displayName || user.email.split('@')[0],
+                                role: 'student',
+                                createdAt: new Date()
+                            };
+                            await db.collection('users').doc(user.uid).set(currentUser);
+                        }
+                        updateAuthUI();
+                        loadRecentItems();
+                    } catch (error) {
+                        console.error('Error loading user data:', error);
+                        showNotification('เกิดข้อผิดพลาดในการโหลดข้อมูลผู้ใช้', 'error');
+                    }
+                } else {
+                    // User is signed out
+                    currentUser = null;
+                    updateAuthUI();
+                    loadRecentItems();
+                }
+            });
+        });
+
+        function setupEventListeners() {
+            // Form submissions
+            document.getElementById('lost-item-form').addEventListener('submit', handleLostItemSubmit);
+            document.getElementById('found-item-form').addEventListener('submit', handleFoundItemSubmit);
+            document.getElementById('auth-form').addEventListener('submit', handleAuthSubmit);
+            
+            // Search and filter
+            document.getElementById('search-input').addEventListener('input', filterItems);
+            document.getElementById('status-filter').addEventListener('change', filterItems);
+            document.getElementById('category-filter').addEventListener('change', filterItems);
+            
+            // Chat input
+            document.getElementById('chat-input').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendMessage();
+                }
+            });
+        }
+
+        function updateAuthUI() {
+            if (currentUser) {
+                document.getElementById('auth-section').classList.add('hidden');
+                document.getElementById('user-menu').classList.remove('hidden');
+                document.getElementById('user-name').textContent = currentUser.name;
+                document.getElementById('user-initial').textContent = currentUser.name.charAt(0).toUpperCase();
+                
+                // Show dashboard menu for teachers in dropdown
+                if (currentUser.role === 'teacher') {
+                    document.getElementById('dashboard-dropdown').classList.remove('hidden');
+                } else {
+                    document.getElementById('dashboard-dropdown').classList.add('hidden');
+                }
+            } else {
+                document.getElementById('auth-section').classList.remove('hidden');
+                document.getElementById('user-menu').classList.add('hidden');
+                document.getElementById('dashboard-dropdown').classList.add('hidden');
+            }
+        }
+
+        function showPage(pageId) {
+            // Check authentication for protected pages
+            const protectedPages = ['report-lost', 'report-found', 'profile'];
+            if (protectedPages.includes(pageId) && !currentUser) {
+                showNotification('กรุณาเข้าสู่ระบบก่อน', 'error');
+                showLoginModal();
+                return;
+            }
+            
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(page => {
+                page.classList.add('hidden');
+            });
+            
+            // Show selected page
+            const targetPage = document.getElementById(pageId + '-page');
+            if (targetPage) {
+                targetPage.classList.remove('hidden');
+                targetPage.classList.add('fade-in');
+            }
+            
+            // Load page-specific content
+            switch(pageId) {
+                case 'home':
+                    loadRecentItems();
+                    loadStatistics();
+                    break;
+                case 'all-items':
+                    loadAllItems();
+                    break;
+                case 'profile':
+                    loadProfile();
+                    break;
+                case 'teacher-dashboard':
+                    if (currentUser && currentUser.role === 'teacher') {
+                        // Show the dashboard page first, then load data
+                        const dashboardPage = document.getElementById('teacher-dashboard');
+                        if (dashboardPage) {
+                            dashboardPage.classList.remove('hidden');
+                            dashboardPage.classList.add('fade-in');
+                        }
+                        loadTeacherDashboard();
+                    } else {
+                        showNotification('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'error');
+                        showPage('home');
+                        return;
+                    }
+                    break;
+            }
+        }
+
+        function showLoginModal() {
+            document.getElementById('login-modal').classList.remove('hidden');
+        }
+
+        function closeLoginModal() {
+            document.getElementById('login-modal').classList.add('hidden');
+        }
+
+        function switchAuthMode(mode) {
+            authMode = mode;
+            const loginTab = document.getElementById('login-tab');
+            const registerTab = document.getElementById('register-tab');
+            const nameField = document.getElementById('name-field');
+            const roleField = document.getElementById('role-field');
+            const submitBtn = document.getElementById('auth-submit');
+            
+            if (mode === 'login') {
+                loginTab.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
+                loginTab.classList.remove('text-gray-600');
+                registerTab.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
+                registerTab.classList.add('text-gray-600');
+                nameField.classList.add('hidden');
+                roleField.classList.add('hidden');
+                submitBtn.textContent = 'เข้าสู่ระบบ';
+            } else {
+                registerTab.classList.add('bg-white', 'text-gray-800', 'shadow-sm');
+                registerTab.classList.remove('text-gray-600');
+                loginTab.classList.remove('bg-white', 'text-gray-800', 'shadow-sm');
+                loginTab.classList.add('text-gray-600');
+                nameField.classList.remove('hidden');
+                roleField.classList.remove('hidden');
+                submitBtn.textContent = 'สมัครสมาชิก';
+            }
+        }
+
+        async function handleAuthSubmit(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('auth-email').value;
+            const password = document.getElementById('auth-password').value;
+            const name = document.getElementById('auth-name').value;
+            const role = document.getElementById('auth-role').value;
+            
+            try {
+                if (authMode === 'login') {
+                    // Login with Firebase Auth
+                    await auth.signInWithEmailAndPassword(email, password);
+                    closeLoginModal();
+                    showNotification('เข้าสู่ระบบสำเร็จ', 'success');
+                    showPage('home');
+                } else {
+                    // Register with Firebase Auth
+                    const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                    const user = userCredential.user;
+                    
+                    // Create user document in Firestore
+                    await db.collection('users').doc(user.uid).set({
+                        name: name,
+                        email: email,
+                        role: role,
+                        createdAt: new Date()
+                    });
+                    
+                    closeLoginModal();
+                    showNotification('สมัครสมาชิกสำเร็จ', 'success');
+                    showPage('home');
+                }
+            } catch (error) {
+                console.error('Auth error:', error);
+                let errorMessage = 'เกิดข้อผิดพลาด';
+                
+                switch (error.code) {
+                    case 'auth/user-not-found':
+                    case 'auth/wrong-password':
+                        errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+                        break;
+                    case 'auth/email-already-in-use':
+                        errorMessage = 'อีเมลนี้ถูกใช้งานแล้ว';
+                        break;
+                    case 'auth/weak-password':
+                        errorMessage = 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+                        break;
+                    case 'auth/invalid-email':
+                        errorMessage = 'รูปแบบอีเมลไม่ถูกต้อง';
+                        break;
+                    default:
+                        errorMessage = error.message;
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+        }
+
+        async function logout() {
+            try {
+                await auth.signOut();
+                showNotification('ออกจากระบบแล้ว', 'info');
+                showPage('home');
+            } catch (error) {
+                console.error('Logout error:', error);
+                showNotification('เกิดข้อผิดพลาดในการออกจากระบบ', 'error');
+            }
+        }
+
+        function toggleUserMenu() {
+            const dropdown = document.getElementById('user-dropdown');
+            dropdown.classList.toggle('hidden');
+        }
+
+        // Function to convert image to base64
+        function convertImageToBase64(file) {
+            return new Promise((resolve, reject) => {
+                console.log('Converting image to base64:', file.name, 'Size:', file.size);
+                
+                // Enhanced file validation
+                if (!file) {
+                    reject(new Error('กรุณาเลือกไฟล์รูปภาพ'));
+                    return;
+                }
+                
+                // Check file type
+                const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+                if (!file.type || !allowedTypes.includes(file.type.toLowerCase())) {
+                    reject(new Error('รองรับเฉพาะไฟล์ JPG, PNG, GIF, WebP เท่านั้น'));
+                    return;
+                }
+                
+                // Check file size (max 1MB for base64 storage)
+                if (file.size > 1 * 1024 * 1024) {
+                    reject(new Error('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 1MB สำหรับการเก็บใน Firestore'));
+                    return;
+                }
+                
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const base64String = e.target.result;
+                        console.log('Image converted to base64 successfully');
+                        resolve(base64String);
+                    } catch (error) {
+                        console.error('Error converting to base64:', error);
+                        reject(new Error('เกิดข้อผิดพลาดในการแปลงรูปภาพ'));
+                    }
+                };
+                
+                reader.onerror = function(error) {
+                    console.error('FileReader error:', error);
+                    reject(new Error('เกิดข้อผิดพลาดในการอ่านไฟล์รูปภาพ'));
+                };
+                
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function handleImageUpload(input, previewId) {
+            const file = input.files[0];
+            if (!file) {
+                console.log('No file selected');
+                return;
+            }
+            
+            console.log('File selected:', file.name, file.type, file.size);
+            
+            const previewContainer = document.getElementById(previewId);
+            const uploadContainer = previewContainer ? previewContainer.previousElementSibling : null;
+            
+            if (!previewContainer || !uploadContainer) {
+                console.error('Preview containers not found');
+                showNotification('เกิดข้อผิดพลาดในระบบ', 'error');
+                return;
+            }
+            
+            // Enhanced file validation
+            const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+            if (!file.type || !allowedTypes.includes(file.type.toLowerCase())) {
+                showNotification('รองรับเฉพาะไฟล์ JPG, PNG, GIF, WebP เท่านั้น', 'error');
+                input.value = '';
+                return;
+            }
+            
+            // Check file size before processing
+            if (file.size > 1 * 1024 * 1024) {
+                showNotification('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 1MB', 'error');
+                input.value = '';
+                return;
+            }
+            
+            // Show preview immediately
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = previewContainer.querySelector('img');
+                if (img) {
+                    img.src = e.target.result;
+                    uploadContainer.classList.add('hidden');
+                    previewContainer.classList.remove('hidden');
+                    
+                    // Store the file for later upload
+                    input.dataset.fileSelected = 'true';
+                    showNotification('เลือกรูปภาพสำเร็จ! จะอัปโหลดเมื่อกดส่งฟอร์ม', 'success');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function resetUploadUI(input, uploadContainer, previewContainer, errorMessage) {
+            try {
+                // Clear input and data safely
+                if (input) {
+                    input.value = '';
+                    input.dataset.fileSelected = '';
+                }
+                
+                // Show error message
+                if (errorMessage) {
+                    showNotification(errorMessage, 'error');
+                }
+                
+                // Reset UI safely
+                if (uploadContainer && previewContainer) {
+                    uploadContainer.classList.remove('hidden');
+                    previewContainer.classList.add('hidden');
+                    
+                    // Reset upload container to original state
+                    uploadContainer.innerHTML = `
+                        <svg class="w-8 h-8 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                        </svg>
+                        <p class="text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ</p>
+                        <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 1MB)</p>
+                    `;
+                }
+                
+                console.log('Upload UI reset successfully');
+            } catch (error) {
+                console.error('Error resetting upload UI:', error);
+            }
+        }
+        
+        function removeImage(inputId, previewId) {
+            const input = document.getElementById(inputId);
+            const previewContainer = document.getElementById(previewId);
+            const uploadContainer = previewContainer.previousElementSibling;
+            
+            input.value = '';
+            input.dataset.fileSelected = '';
+            uploadContainer.classList.remove('hidden');
+            previewContainer.classList.add('hidden');
+        }
+
+        async function handleLostItemSubmit(e) {
+            e.preventDefault();
+            
+            if (!currentUser) {
+                showNotification('กรุณาเข้าสู่ระบบก่อน', 'error');
+                return;
+            }
+            
+            // Validate required fields
+            const itemName = document.getElementById('lost-item-name').value.trim();
+            const category = document.getElementById('lost-category').value;
+            const location = document.getElementById('lost-location').value.trim();
+            const contactName = document.getElementById('lost-contact-name').value.trim();
+            
+            if (!itemName || !category || !location || !contactName) {
+                showNotification('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน', 'error');
+                return;
+            }
+            
+            try {
+                const imageInput = document.getElementById('lost-image');
+                let imageBase64 = null;
+                
+                // Check if image file is selected
+                if (imageInput.files && imageInput.files[0]) {
+                    showNotification('กำลังประมวลผลรูปภาพ...', 'info');
+                    
+                    try {
+                        imageBase64 = await convertImageToBase64(imageInput.files[0]);
+                        console.log('Image converted to base64 successfully');
+                    } catch (imageError) {
+                        console.error('Image conversion error:', imageError);
+                        showNotification('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ: ' + imageError.message, 'error');
+                        return;
+                    }
+                }
+                
+                // Create item object with proper validation
+                const item = {
+                    type: 'lost',
+                    name: itemName,
+                    category: category,
+                    description: document.getElementById('lost-description').value.trim() || '',
+                    location: location,
+                    contactName: contactName,
+                    contactPhone: document.getElementById('lost-contact-phone').value.trim() || '',
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    userName: currentUser.name,
+                    status: 'lost',
+                    createdAt: new Date().toISOString()
+                };
+                
+                // Add image only if it exists and is not too large
+                if (imageBase64) {
+                    // Check base64 size (Firestore has 1MB document limit)
+                    const sizeInBytes = new Blob([imageBase64]).size;
+                    if (sizeInBytes > 800000) { // Leave some room for other data
+                        showNotification('รูปภาพมีขนาดใหญ่เกินไป กรุณาเลือกรูปที่เล็กกว่า', 'error');
+                        return;
+                    }
+                    item.image = imageBase64;
+                }
+                
+                console.log('Saving item:', { ...item, image: item.image ? '[IMAGE_DATA]' : null });
+                showNotification('กำลังบันทึกข้อมูล...', 'info');
+                
+                const docRef = await db.collection('items').add(item);
+                console.log('Item saved successfully with ID:', docRef.id);
+                
+                showNotification('แจ้งของหายสำเร็จ!', 'success');
+                document.getElementById('lost-item-form').reset();
+                removeImage('lost-image', 'lost-image-preview');
+                showPage('all-items');
+                
+            } catch (error) {
+                console.error('Error adding lost item:', error);
+                let errorMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+                
+                if (error.code === 'resource-exhausted') {
+                    errorMessage = 'ข้อมูลมีขนาดใหญ่เกินไป กรุณาลดขนาดรูปภาพ';
+                } else if (error.code === 'permission-denied') {
+                    errorMessage = 'ไม่มีสิทธิ์ในการบันทึกข้อมูล กรุณาตรวจสอบการเข้าสู่ระบบ';
+                } else if (error.code === 'invalid-argument') {
+                    errorMessage = 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบข้อมูลที่กรอก';
+                } else if (error.message) {
+                    errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+        }
+
+        async function handleFoundItemSubmit(e) {
+            e.preventDefault();
+            
+            if (!currentUser) {
+                showNotification('กรุณาเข้าสู่ระบบก่อน', 'error');
+                return;
+            }
+            
+            // Validate required fields
+            const itemName = document.getElementById('found-item-name').value.trim();
+            const category = document.getElementById('found-category').value;
+            const location = document.getElementById('found-location').value.trim();
+            const storage = document.getElementById('found-storage').value.trim();
+            const contactName = document.getElementById('found-contact-name').value.trim();
+            
+            if (!itemName || !category || !location || !storage || !contactName) {
+                showNotification('กรุณากรอกข้อมูลที่จำเป็นให้ครบถ้วน', 'error');
+                return;
+            }
+            
+            try {
+                const imageInput = document.getElementById('found-image');
+                let imageBase64 = null;
+                
+                // Check if image file is selected
+                if (imageInput.files && imageInput.files[0]) {
+                    showNotification('กำลังประมวลผลรูปภาพ...', 'info');
+                    
+                    try {
+                        imageBase64 = await convertImageToBase64(imageInput.files[0]);
+                        console.log('Image converted to base64 successfully');
+                    } catch (imageError) {
+                        console.error('Image conversion error:', imageError);
+                        showNotification('เกิดข้อผิดพลาดในการประมวลผลรูปภาพ: ' + imageError.message, 'error');
+                        return;
+                    }
+                }
+                
+                // Create item object with proper validation
+                const item = {
+                    type: 'found',
+                    name: itemName,
+                    category: category,
+                    description: document.getElementById('found-description').value.trim() || '',
+                    location: location,
+                    storage: storage,
+                    contactName: contactName,
+                    contactPhone: document.getElementById('found-contact-phone').value.trim() || '',
+                    userId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    userName: currentUser.name,
+                    status: 'found',
+                    createdAt: new Date().toISOString()
+                };
+                
+                // Add image only if it exists and is not too large
+                if (imageBase64) {
+                    // Check base64 size (Firestore has 1MB document limit)
+                    const sizeInBytes = new Blob([imageBase64]).size;
+                    if (sizeInBytes > 800000) { // Leave some room for other data
+                        showNotification('รูปภาพมีขนาดใหญ่เกินไป กรุณาเลือกรูปที่เล็กกว่า', 'error');
+                        return;
+                    }
+                    item.image = imageBase64;
+                }
+                
+                console.log('Saving item:', { ...item, image: item.image ? '[IMAGE_DATA]' : null });
+                showNotification('กำลังบันทึกข้อมูล...', 'info');
+                
+                const docRef = await db.collection('items').add(item);
+                console.log('Item saved successfully with ID:', docRef.id);
+                
+                showNotification('แจ้งเจอของสำเร็จ!', 'success');
+                document.getElementById('found-item-form').reset();
+                removeImage('found-image', 'found-image-preview');
+                showPage('all-items');
+                
+            } catch (error) {
+                console.error('Error adding found item:', error);
+                let errorMessage = 'เกิดข้อผิดพลาดในการบันทึกข้อมูล';
+                
+                if (error.code === 'resource-exhausted') {
+                    errorMessage = 'ข้อมูลมีขนาดใหญ่เกินไป กรุณาลดขนาดรูปภาพ';
+                } else if (error.code === 'permission-denied') {
+                    errorMessage = 'ไม่มีสิทธิ์ในการบันทึกข้อมูล กรุณาตรวจสอบการเข้าสู่ระบบ';
+                } else if (error.code === 'invalid-argument') {
+                    errorMessage = 'ข้อมูลไม่ถูกต้อง กรุณาตรวจสอบข้อมูลที่กรอก';
+                } else if (error.message) {
+                    errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+        }
+
+        async function loadRecentItems() {
+            try {
+                // Load lost items
+                let lostItems = [];
+                try {
+                    const lostQuery = await db.collection('items')
+                        .where('type', '==', 'lost')
+                        .limit(3)
+                        .get();
+                    
+                    lostItems = lostQuery.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    
+                    // Sort by date on client side if createdAt exists
+                    lostItems.sort((a, b) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                        return dateB - dateA;
+                    });
+                    
+                    lostItems = lostItems.slice(0, 3);
+                } catch (lostError) {
+                    console.error('Error loading lost items:', lostError);
+                }
+                
+                // Load found items
+                let foundItems = [];
+                try {
+                    const foundQuery = await db.collection('items')
+                        .where('type', '==', 'found')
+                        .limit(3)
+                        .get();
+                    
+                    foundItems = foundQuery.docs.map(doc => ({
+                        id: doc.id,
+                        ...doc.data()
+                    }));
+                    
+                    // Sort by date on client side if createdAt exists
+                    foundItems.sort((a, b) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                        return dateB - dateA;
+                    });
+                    
+                    foundItems = foundItems.slice(0, 3);
+                } catch (foundError) {
+                    console.error('Error loading found items:', foundError);
+                }
+                
+                renderItemList('recent-lost-items', lostItems);
+                renderItemList('recent-found-items', foundItems);
+                
+            } catch (error) {
+                console.error('Error loading recent items:', error);
+                // Fallback to empty arrays
+                renderItemList('recent-lost-items', []);
+                renderItemList('recent-found-items', []);
+            }
+        }
+
+        async function loadAllItems() {
+            try {
+                const snapshot = await db.collection('items').get();
+                
+                let items = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Sort by date on client side
+                items.sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return dateB - dateA;
+                });
+                
+                renderItemList('items-grid', items, true);
+            } catch (error) {
+                console.error('Error loading all items:', error);
+                renderItemList('items-grid', [], true);
+            }
+        }
+
+        function renderItemList(containerId, itemList, isGrid = false) {
+            const container = document.getElementById(containerId);
+            if (!container) return;
+            
+            if (itemList.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-8">ไม่มีรายการ</p>';
+                return;
+            }
+            
+            container.innerHTML = itemList.map(item => {
+                const statusColor = item.status === 'lost' ? 'bg-red-100 text-red-800' : 
+                                  item.status === 'found' ? 'bg-green-100 text-green-800' : 
+                                  'bg-blue-100 text-blue-800';
+                
+                const statusText = item.status === 'lost' ? 'ของหาย' : 
+                                 item.status === 'found' ? 'พบแล้ว' : 'คืนแล้ว';
+                
+                const imageHtml = item.image ? 
+                    `<div class="w-full h-32 mb-3 rounded-lg overflow-hidden bg-gray-100">
+                        <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover">
+                    </div>` : '';
+                
+                // Handle Firestore timestamp
+                let dateString = '';
+                if (item.createdAt) {
+                    try {
+                        if (item.createdAt.toDate) {
+                            // Firestore timestamp
+                            dateString = item.createdAt.toDate().toLocaleDateString('th-TH');
+                        } else if (item.createdAt instanceof Date) {
+                            // JavaScript Date
+                            dateString = item.createdAt.toLocaleDateString('th-TH');
+                        } else if (typeof item.createdAt === 'string') {
+                            // String date
+                            dateString = new Date(item.createdAt).toLocaleDateString('th-TH');
+                        } else {
+                            // Fallback
+                            dateString = 'ไม่ระบุวันที่';
+                        }
+                    } catch (error) {
+                        console.log('Date parsing error:', error);
+                        dateString = 'ไม่ระบุวันที่';
+                    }
+                } else {
+                    dateString = 'ไม่ระบุวันที่';
+                }
+                
+                return `
+                    <div class="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition">
+                        ${imageHtml}
+                        <div class="flex justify-between items-start mb-2">
+                            <h4 class="font-semibold text-gray-800 cursor-pointer hover:text-blue-600" onclick="showItemDetail('${item.id}')">${item.name}</h4>
+                            <span class="px-2 py-1 rounded-full text-xs ${statusColor}">${statusText}</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">${item.category}</p>
+                        <p class="text-sm text-gray-500">${item.location}</p>
+                        <p class="text-xs text-gray-400 mt-2">${dateString}</p>
+                        ${containerId === 'user-items' ? `
+                        <div class="flex space-x-2 mt-3 pt-3 border-t border-gray-100">
+                            <button onclick="showItemDetail('${item.id}')" class="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition">ดูรายละเอียด</button>
+                            <button onclick="deleteItem('${item.id}', false)" class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition">ลบ</button>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function filterItems() {
+            try {
+                const searchTerm = document.getElementById('search-input').value.toLowerCase();
+                const statusFilter = document.getElementById('status-filter').value;
+                const categoryFilter = document.getElementById('category-filter').value;
+                
+                let query = db.collection('items').orderBy('createdAt', 'desc');
+                
+                // Apply filters
+                if (statusFilter) {
+                    query = query.where('status', '==', statusFilter);
+                }
+                
+                if (categoryFilter) {
+                    query = query.where('category', '==', categoryFilter);
+                }
+                
+                const snapshot = await query.get();
+                let items = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Apply search filter (client-side for now)
+                if (searchTerm) {
+                    items = items.filter(item => {
+                        const name = (item.name || '').toLowerCase();
+                        const description = (item.description || '').toLowerCase();
+                        return name.includes(searchTerm) || description.includes(searchTerm);
+                    });
+                }
+                
+                renderItemList('items-grid', items, true);
+            } catch (error) {
+                console.error('Error filtering items:', error);
+                renderItemList('items-grid', [], true);
+            }
+        }
+
+        async function showItemDetail(itemId) {
+            // Close any existing modal first
+            if (currentItemId) {
+                closeItemModal();
+            }
+            
+            try {
+                const doc = await db.collection('items').doc(itemId).get();
+                if (!doc.exists) {
+                    showNotification('ไม่พบรายการนี้', 'error');
+                    return;
+                }
+                
+                const item = { id: doc.id, ...doc.data() };
+                currentItemId = itemId;
+                
+                document.getElementById('modal-item-name').textContent = item.name;
+                document.getElementById('modal-item-category').textContent = item.category;
+                document.getElementById('modal-item-location').textContent = item.location;
+                document.getElementById('modal-item-description').textContent = item.description || 'ไม่มีรายละเอียด';
+                document.getElementById('modal-item-contact').textContent = `${item.contactName}${item.contactPhone ? ' - ' + item.contactPhone : ''}`;
+                
+                // Show storage location for found items
+                const storageSection = document.getElementById('modal-storage-section');
+                const storageElement = document.getElementById('modal-item-storage');
+                if (item.type === 'found' && item.storage) {
+                    storageSection.classList.remove('hidden');
+                    storageElement.textContent = item.storage;
+                } else {
+                    storageSection.classList.add('hidden');
+                }
+                
+                // Handle date display
+                let dateString = '';
+                if (item.createdAt) {
+                    if (item.createdAt.toDate) {
+                        dateString = item.createdAt.toDate().toLocaleDateString('th-TH');
+                    } else if (item.createdAt instanceof Date) {
+                        dateString = item.createdAt.toLocaleDateString('th-TH');
+                    } else {
+                        dateString = new Date(item.createdAt).toLocaleDateString('th-TH');
+                    }
+                }
+                document.getElementById('modal-item-date').textContent = dateString;
+                
+                // Display image if available
+                const imageContainer = document.getElementById('modal-item-image');
+                if (item.image) {
+                    imageContainer.innerHTML = `
+                        <div class="w-full h-64 rounded-lg overflow-hidden bg-gray-100 mb-4">
+                            <img src="${item.image}" alt="${item.name}" class="w-full h-full object-cover">
+                        </div>
+                    `;
+                } else {
+                    imageContainer.innerHTML = '';
+                }
+                
+                const statusElement = document.getElementById('modal-item-status');
+                const statusColor = item.status === 'lost' ? 'bg-red-100 text-red-800' : 
+                                  item.status === 'found' ? 'bg-green-100 text-green-800' : 
+                                  'bg-blue-100 text-blue-800';
+                const statusText = item.status === 'lost' ? 'ของหาย' : 
+                                 item.status === 'found' ? 'พบแล้ว' : 'คืนแล้ว';
+                
+                statusElement.className = `inline-block px-2 py-1 rounded-full text-sm ${statusColor}`;
+                statusElement.textContent = statusText;
+                
+                // Show/hide chat input based on authentication
+                if (currentUser) {
+                    document.getElementById('chat-input-section').classList.remove('hidden');
+                    document.getElementById('chat-login-prompt').classList.add('hidden');
+                } else {
+                    document.getElementById('chat-input-section').classList.add('hidden');
+                    document.getElementById('chat-login-prompt').classList.remove('hidden');
+                }
+                
+                document.getElementById('item-modal').classList.remove('hidden');
+                
+                // Load chat messages after modal is shown
+                setTimeout(() => {
+                    loadChatMessages(itemId);
+                }, 100);
+            } catch (error) {
+                console.error('Error loading item detail:', error);
+                showNotification('เกิดข้อผิดพลาดในการโหลดรายละเอียด', 'error');
+            }
+        }
+
+        function closeItemModal() {
+            document.getElementById('item-modal').classList.add('hidden');
+            
+            // Clean up chat listener
+            if (chatListener) {
+                try {
+                    const chatRef = rtdb.ref(`chats/${currentItemId}`);
+                    chatRef.off('value', chatListener);
+                } catch (error) {
+                    console.log('Error cleaning up chat listener:', error);
+                }
+                chatListener = null;
+            }
+            
+            currentItemId = null;
+            
+            // Clear chat input
+            const chatInput = document.getElementById('chat-input');
+            if (chatInput) {
+                chatInput.value = '';
+            }
+        }
+
+        function loadChatMessages(itemId) {
+            console.log('🔄 Loading chat messages for item:', itemId);
+            
+            // Clean up previous listener
+            if (chatListener) {
+                try {
+                    if (typeof chatListener === 'function') {
+                        chatListener();
+                    }
+                    console.log('🧹 Cleaned up previous chat listener');
+                } catch (error) {
+                    console.log('⚠️ Error cleaning up chat listener:', error);
+                }
+                chatListener = null;
+            }
+            
+            const container = document.getElementById('chat-messages');
+            if (!container) {
+                console.error('❌ Chat messages container not found');
+                return;
+            }
+            
+            // Show loading state
+            container.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                    <div class="text-center">
+                        <svg class="w-8 h-8 text-blue-500 mx-auto mb-2 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                        </svg>
+                        <p class="text-gray-500 text-sm">กำลังโหลดข้อความ...</p>
+                    </div>
+                </div>
+            `;
+            
+            try {
+                // Enhanced Firestore connection check
+                if (!db) {
+                    throw new Error('Cloud Firestore ไม่พร้อมใช้งาน');
+                }
+                
+                console.log('📡 Setting up Firestore listener for chats:', itemId);
+                
+                // Listen for real-time updates using Firestore
+                chatListener = db.collection('chats')
+                    .doc(itemId)
+                    .collection('messages')
+                    .orderBy('createdAt', 'asc')
+                    .onSnapshot((snapshot) => {
+                        try {
+                            console.log('📨 Received chat data update from Firestore');
+                            
+                            if (snapshot.empty) {
+                                container.innerHTML = `
+                                    <div class="flex items-center justify-center h-full">
+                                        <div class="text-center">
+                                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                                            </svg>
+                                            <p class="text-gray-500 text-sm mb-2">ยังไม่มีข้อความ</p>
+                                            <p class="text-gray-400 text-xs">เริ่มสนทนากันเลย! 💬</p>
+                                        </div>
+                                    </div>
+                                `;
+                                return;
+                            }
+                            
+                            // Convert Firestore documents to array
+                            const chatArray = snapshot.docs.map(doc => ({
+                                id: doc.id,
+                                ...doc.data()
+                            }));
+                            
+                            console.log(`💬 Rendering ${chatArray.length} messages`);
+                            
+                            container.innerHTML = chatArray.map(chat => {
+                                const isCurrentUser = chat.userId === currentUser?.uid;
+                                
+                                // Enhanced time formatting
+                                let timeString = '';
+                                try {
+                                    if (chat.createdAt && chat.createdAt.toDate) {
+                                        // Firestore timestamp
+                                        timeString = chat.createdAt.toDate().toLocaleTimeString('th-TH', { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                        });
+                                    } else if (chat.createdAt instanceof Date) {
+                                        timeString = chat.createdAt.toLocaleTimeString('th-TH', { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                        });
+                                    } else if (chat.timestamp) {
+                                        timeString = new Date(chat.timestamp).toLocaleTimeString('th-TH', { 
+                                            hour: '2-digit', 
+                                            minute: '2-digit' 
+                                        });
+                                    } else {
+                                        timeString = 'ไม่ระบุเวลา';
+                                    }
+                                } catch (error) {
+                                    timeString = 'ไม่ระบุเวลา';
+                                }
+                                
+                                // Sanitize message content
+                                const sanitizedMessage = (chat.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                const userName = (chat.userName || 'ไม่ระบุชื่อ').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                                
+                                return `
+                                    <div class="mb-4 ${isCurrentUser ? 'text-right' : 'text-left'} animate-fade-in">
+                                        <div class="inline-block max-w-xs lg:max-w-md px-4 py-3 rounded-2xl shadow-sm ${
+                                            isCurrentUser 
+                                                ? 'bg-blue-500 text-white rounded-br-md' 
+                                                : 'bg-white text-gray-800 border border-gray-200 rounded-bl-md'
+                                        }">
+                                            <div class="flex items-center space-x-2 mb-1">
+                                                <span class="font-semibold text-xs ${isCurrentUser ? 'text-blue-100' : 'text-gray-600'}">${userName}</span>
+                                                <span class="text-xs ${isCurrentUser ? 'text-blue-200' : 'text-gray-400'}">${timeString}</span>
+                                            </div>
+                                            <p class="text-sm leading-relaxed">${sanitizedMessage}</p>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('');
+                            
+                            // Smooth scroll to bottom
+                            setTimeout(() => {
+                                container.scrollTo({
+                                    top: container.scrollHeight,
+                                    behavior: 'smooth'
+                                });
+                            }, 100);
+                            
+                        } catch (error) {
+                            console.error('❌ Error rendering chat messages:', error);
+                            container.innerHTML = `
+                                <div class="flex items-center justify-center h-full">
+                                    <div class="text-center">
+                                        <svg class="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                                        </svg>
+                                        <p class="text-red-500 text-sm mb-2">เกิดข้อผิดพลาดในการแสดงข้อความ</p>
+                                        <button onclick="loadChatMessages('${itemId}')" class="text-blue-500 text-xs hover:underline">ลองใหม่</button>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }, (error) => {
+                        console.error('❌ Error loading chat messages:', error);
+                        container.innerHTML = `
+                            <div class="flex items-center justify-center h-full">
+                                <div class="text-center">
+                                    <svg class="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364"/>
+                                    </svg>
+                                    <p class="text-red-500 text-sm mb-2">ไม่สามารถโหลดข้อความได้</p>
+                                    <p class="text-gray-400 text-xs mb-3">กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต</p>
+                                    <button onclick="loadChatMessages('${itemId}')" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-xs hover:bg-blue-600 transition">ลองใหม่</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                
+                console.log('✅ Firestore chat listener set up successfully');
+                
+            } catch (error) {
+                console.error('❌ Error setting up chat listener:', error);
+                container.innerHTML = `
+                    <div class="flex items-center justify-center h-full">
+                        <div class="text-center">
+                            <svg class="w-12 h-12 text-red-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                            <p class="text-red-500 text-sm mb-2">เกิดข้อผิดพลาดในการตั้งค่าแชต</p>
+                            <p class="text-gray-400 text-xs mb-3">${error.message}</p>
+                            <button onclick="loadChatMessages('${itemId}')" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-xs hover:bg-blue-600 transition">ลองใหม่</button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function sendMessage() {
+            console.log('=== sendMessage called ===');
+            
+            // Enhanced authentication check
+            if (!currentUser) {
+                console.log('❌ No current user');
+                showNotification('กรุณาเข้าสู่ระบบก่อนใช้งานแชต', 'error');
+                showLoginModal();
+                return;
+            }
+            
+            // Enhanced Firebase auth check
+            const firebaseUser = auth.currentUser;
+            if (!firebaseUser) {
+                console.log('❌ No Firebase user');
+                showNotification('การเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบใหม่', 'error');
+                showLoginModal();
+                return;
+            }
+            
+            if (!currentItemId) {
+                console.log('❌ No current item ID');
+                showNotification('เกิดข้อผิดพลาด: ไม่พบรายการที่เลือก', 'error');
+                return;
+            }
+            
+            const input = document.getElementById('chat-input');
+            if (!input) {
+                console.error('❌ Chat input element not found');
+                showNotification('เกิดข้อผิดพลาด: ไม่พบช่องพิมพ์ข้อความ', 'error');
+                return;
+            }
+            
+            const message = input.value.trim();
+            console.log('📝 Message to send:', message);
+            
+            if (!message) {
+                showNotification('กรุณาพิมพ์ข้อความก่อนส่ง', 'error');
+                input.focus();
+                return;
+            }
+            
+            if (message.length > 500) {
+                showNotification('ข้อความยาวเกินไป (สูงสุด 500 ตัวอักษร)', 'error');
+                return;
+            }
+            
+            // Disable input while sending
+            input.disabled = true;
+            const sendButton = input.nextElementSibling;
+            const originalButtonText = sendButton ? sendButton.innerHTML : '';
+            
+            if (sendButton) {
+                sendButton.disabled = true;
+                sendButton.innerHTML = `
+                    <svg class="w-4 h-4 mr-1 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                    ส่ง...
+                `;
+            }
+            
+            try {
+                console.log('🔄 Attempting to send message to Firestore...');
+                
+                // Enhanced Firestore connection check
+                if (!db) {
+                    throw new Error('Cloud Firestore ไม่พร้อมใช้งาน');
+                }
+                
+                const messageData = {
+                    userId: currentUser.uid,
+                    userName: currentUser.name || currentUser.email.split('@')[0],
+                    userEmail: currentUser.email,
+                    message: message,
+                    timestamp: new Date().toISOString(),
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                };
+                
+                console.log('📤 Sending message data to Firestore:', { ...messageData, message: `"${message}"` });
+                
+                // Add message to Firestore subcollection
+                const chatRef = db.collection('chats').doc(currentItemId).collection('messages');
+                const docRef = await chatRef.add(messageData);
+                
+                console.log('✅ Message sent successfully to Firestore with ID:', docRef.id);
+                
+                // Clear input and show success
+                input.value = '';
+                showNotification('ส่งข้อความสำเร็จ! 💬', 'success');
+                
+                // Focus back to input for next message
+                setTimeout(() => {
+                    input.focus();
+                }, 100);
+                
+            } catch (error) {
+                console.error('❌ Error sending message:', error);
+                
+                let errorMessage = 'เกิดข้อผิดพลาดในการส่งข้อความ';
+                
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'ไม่มีสิทธิ์ในการส่งข้อความ กรุณาเข้าสู่ระบบใหม่';
+                } else if (error.code === 'unavailable') {
+                    errorMessage = 'บริการไม่พร้อมใช้งาน กรุณาลองใหม่ในภายหลัง';
+                } else if (error.code === 'deadline-exceeded') {
+                    errorMessage = 'การเชื่อมต่อหมดเวลา กรุณาลองใหม่';
+                } else if (error.code === 'unauthenticated') {
+                    errorMessage = 'การเข้าสู่ระบบหมดอายุ กรุณาเข้าสู่ระบบใหม่';
+                } else if (error.message.includes('network')) {
+                    errorMessage = 'ปัญหาการเชื่อมต่อเครือข่าย กรุณาตรวจสอบอินเทอร์เน็ต';
+                } else if (error.message) {
+                    errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+                }
+                
+                showNotification(errorMessage, 'error');
+                
+                // Keep the message in input for retry
+                console.log('💾 Keeping message for retry:', message);
+                
+            } finally {
+                // Re-enable input
+                input.disabled = false;
+                if (sendButton) {
+                    sendButton.disabled = false;
+                    sendButton.innerHTML = originalButtonText;
+                }
+                
+                // Always focus back to input
+                setTimeout(() => {
+                    if (!input.disabled) {
+                        input.focus();
+                    }
+                }, 100);
+            }
+        }
+
+        async function loadProfile() {
+            if (!currentUser) return;
+            
+            document.getElementById('profile-name').textContent = currentUser.name;
+            document.getElementById('profile-email').textContent = currentUser.email;
+            document.getElementById('profile-initial').textContent = currentUser.name.charAt(0).toUpperCase();
+            
+            const roleElement = document.getElementById('profile-role');
+            roleElement.textContent = currentUser.role === 'teacher' ? 'ครู' : 'นักเรียน';
+            roleElement.className = currentUser.role === 'teacher' ? 
+                'inline-block mt-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm' :
+                'inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm';
+            
+            try {
+                console.log('Loading profile items for user:', currentUser.uid);
+                
+                // Query without orderBy to avoid index requirement
+                const snapshot = await db.collection('items')
+                    .where('userId', '==', currentUser.uid)
+                    .get();
+                
+                let userItems = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+                
+                // Sort on client side
+                userItems.sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return dateB - dateA;
+                });
+                
+                console.log('Found user items:', userItems.length);
+                renderItemList('user-items', userItems);
+            } catch (error) {
+                console.error('Error loading user items:', error);
+                showNotification('เกิดข้อผิดพลาดในการโหลดรายการของคุณ', 'error');
+                renderItemList('user-items', []);
+            }
+        }
+
+        async function loadTeacherDashboard() {
+            if (!currentUser || currentUser.role !== 'teacher') {
+                console.log('Access denied: not a teacher');
+                return;
+            }
+            
+            console.log('Loading teacher dashboard...');
+            
+            try {
+                // Get all items for statistics
+                console.log('Fetching all items...');
+                const allItemsSnapshot = await db.collection('items').get();
+                const allItems = allItemsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                console.log('Total items found:', allItems.length);
+                
+                const lostItems = allItems.filter(item => item.status === 'lost');
+                const foundItems = allItems.filter(item => item.status === 'found');
+                const returnedItems = allItems.filter(item => item.status === 'returned');
+                
+                console.log('Items breakdown:', {
+                    lost: lostItems.length,
+                    found: foundItems.length,
+                    returned: returnedItems.length
+                });
+                
+                // Get user count
+                console.log('Fetching users count...');
+                const usersSnapshot = await db.collection('users').get();
+                const userCount = usersSnapshot.size;
+                
+                console.log('Users count:', userCount);
+                
+                // Update statistics
+                const lostCountEl = document.getElementById('lost-count');
+                const foundCountEl = document.getElementById('found-count');
+                const returnedCountEl = document.getElementById('returned-count');
+                const usersCountEl = document.getElementById('users-count');
+                
+                if (lostCountEl) lostCountEl.textContent = lostItems.length;
+                if (foundCountEl) foundCountEl.textContent = foundItems.length;
+                if (returnedCountEl) returnedCountEl.textContent = returnedItems.length;
+                if (usersCountEl) usersCountEl.textContent = userCount;
+                
+                // Sort items by date
+                const sortByDate = (items) => {
+                    return items.sort((a, b) => {
+                        const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                        const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                        return dateB - dateA;
+                    });
+                };
+                
+                renderTeacherItems('teacher-lost-items', sortByDate([...lostItems]));
+                renderTeacherItems('teacher-found-items', sortByDate([...foundItems]));
+                renderTeacherItems('teacher-returned-items', sortByDate([...returnedItems]));
+                
+                console.log('Teacher dashboard loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading teacher dashboard:', error);
+                showNotification('เกิดข้อผิดพลาดในการโหลดแดชบอร์ด: ' + error.message, 'error');
+                
+                // Set default values on error
+                const elements = ['lost-count', 'found-count', 'returned-count', 'users-count'];
+                elements.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.textContent = '0';
+                });
+                
+                renderTeacherItems('teacher-lost-items', []);
+                renderTeacherItems('teacher-found-items', []);
+                renderTeacherItems('teacher-returned-items', []);
+            }
+        }
+
+        function renderTeacherItems(containerId, itemList) {
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Container not found:', containerId);
+                return;
+            }
+            
+            console.log(`Rendering ${itemList.length} items for ${containerId}`);
+            
+            if (itemList.length === 0) {
+                container.innerHTML = '<p class="text-gray-500 text-center py-4">ไม่มีรายการ</p>';
+                return;
+            }
+            
+            container.innerHTML = itemList.map(item => {
+                // Handle date display
+                let dateString = 'ไม่ระบุวันที่';
+                try {
+                    if (item.createdAt) {
+                        if (item.createdAt.toDate) {
+                            dateString = item.createdAt.toDate().toLocaleDateString('th-TH');
+                        } else if (item.createdAt instanceof Date) {
+                            dateString = item.createdAt.toLocaleDateString('th-TH');
+                        } else if (typeof item.createdAt === 'string') {
+                            dateString = new Date(item.createdAt).toLocaleDateString('th-TH');
+                        }
+                    }
+                } catch (error) {
+                    console.log('Date parsing error:', error);
+                }
+                
+                // Safely get item properties
+                const itemName = item.name || 'ไม่ระบุชื่อ';
+                const itemCategory = item.category || 'ไม่ระบุหมวดหมู่';
+                const itemLocation = item.location || 'ไม่ระบุสถานที่';
+                const contactName = item.userName || item.contactName || 'ไม่ระบุผู้ติดต่อ';
+                
+                return `
+                    <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg mb-3 hover:bg-gray-100 transition">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">${itemName}</h4>
+                            <p class="text-sm text-gray-600">${itemCategory} - ${itemLocation}</p>
+                            <p class="text-xs text-gray-500">${dateString}</p>
+                            <p class="text-xs text-gray-400">โดย: ${contactName}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="showItemDetail('${item.id}')" class="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition">ดู</button>
+                            ${item.status !== 'returned' ? `<button onclick="markAsReturned('${item.id}')" class="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition">คืนแล้ว</button>` : ''}
+                            <button onclick="deleteItem('${item.id}', true)" class="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition">ลบ</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Remove active class from all tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-gray-500');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName + '-tab').classList.remove('hidden');
+            
+            // Add active class to selected tab button
+            event.target.classList.add('border-blue-600', 'text-blue-600');
+            event.target.classList.remove('border-transparent', 'text-gray-500');
+        }
+
+        async function markAsReturned(itemId) {
+            if (!currentUser || currentUser.role !== 'teacher') {
+                showNotification('คุณไม่มีสิทธิ์ในการอัปเดตสถานะ', 'error');
+                return;
+            }
+            
+            try {
+                console.log('Marking item as returned:', itemId);
+                
+                await db.collection('items').doc(itemId).update({
+                    status: 'returned',
+                    returnedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    returnedBy: currentUser.uid,
+                    returnedByName: currentUser.name
+                });
+                
+                showNotification('อัปเดตสถานะเป็นคืนแล้ว', 'success');
+                
+                // Reload dashboard to reflect changes
+                setTimeout(() => {
+                    loadTeacherDashboard();
+                }, 500);
+                
+            } catch (error) {
+                console.error('Error marking as returned:', error);
+                showNotification('เกิดข้อผิดพลาดในการอัปเดตสถานะ: ' + error.message, 'error');
+            }
+        }
+
+        async function loadStatistics() {
+            try {
+                console.log('Loading statistics...');
+                
+                // Get all items for statistics
+                const snapshot = await db.collection('items').get();
+                const allItems = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Calculate top lost locations
+                const locationCounts = {};
+                const lostItems = allItems.filter(item => item.type === 'lost');
+                
+                lostItems.forEach(item => {
+                    const location = item.location || 'ไม่ระบุสถานที่';
+                    locationCounts[location] = (locationCounts[location] || 0) + 1;
+                });
+                
+                // Sort and get top 5
+                const topLocations = Object.entries(locationCounts)
+                    .sort(([,a], [,b]) => b - a)
+                    .slice(0, 5);
+                
+                // Render top locations
+                const topLocationsContainer = document.getElementById('top-lost-locations');
+                if (topLocations.length === 0) {
+                    topLocationsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">ยังไม่มีข้อมูล</p>';
+                } else {
+                    topLocationsContainer.innerHTML = topLocations.map(([location, count], index) => `
+                        <div class="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                            <div class="flex items-center">
+                                <span class="w-6 h-6 bg-red-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3">${index + 1}</span>
+                                <span class="text-gray-800 font-medium">${location}</span>
+                            </div>
+                            <span class="bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm font-semibold">${count} ครั้ง</span>
+                        </div>
+                    `).join('');
+                }
+                
+                // Calculate monthly statistics
+                const monthlyStats = {};
+                const currentYear = new Date().getFullYear();
+                
+                allItems.forEach(item => {
+                    let itemDate;
+                    try {
+                        if (item.createdAt && item.createdAt.toDate) {
+                            itemDate = item.createdAt.toDate();
+                        } else if (item.createdAt instanceof Date) {
+                            itemDate = item.createdAt;
+                        } else if (typeof item.createdAt === 'string') {
+                            itemDate = new Date(item.createdAt);
+                        } else {
+                            return; // Skip items without valid date
+                        }
+                        
+                        if (itemDate.getFullYear() === currentYear) {
+                            const monthKey = itemDate.toLocaleDateString('th-TH', { year: 'numeric', month: 'long' });
+                            
+                            if (!monthlyStats[monthKey]) {
+                                monthlyStats[monthKey] = { lost: 0, found: 0, returned: 0 };
+                            }
+                            
+                            if (item.type === 'lost') {
+                                monthlyStats[monthKey].lost++;
+                            } else if (item.type === 'found') {
+                                monthlyStats[monthKey].found++;
+                            }
+                            
+                            if (item.status === 'returned') {
+                                monthlyStats[monthKey].returned++;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Error parsing date for item:', item.id, error);
+                    }
+                });
+                
+                // Get last 6 months
+                const monthlyStatsArray = Object.entries(monthlyStats)
+                    .sort(([a], [b]) => new Date(a.replace('พ.ศ.', '').trim()) - new Date(b.replace('พ.ศ.', '').trim()))
+                    .slice(-6);
+                
+                // Render monthly stats
+                const monthlyStatsContainer = document.getElementById('monthly-stats');
+                if (monthlyStatsArray.length === 0) {
+                    monthlyStatsContainer.innerHTML = '<p class="text-gray-500 text-center py-4">ยังไม่มีข้อมูลในปีนี้</p>';
+                } else {
+                    monthlyStatsContainer.innerHTML = monthlyStatsArray.map(([month, stats]) => `
+                        <div class="p-3 bg-blue-50 rounded-lg">
+                            <h5 class="font-semibold text-gray-800 mb-2">${month}</h5>
+                            <div class="grid grid-cols-3 gap-2 text-sm">
+                                <div class="text-center">
+                                    <div class="text-red-600 font-bold">${stats.lost}</div>
+                                    <div class="text-gray-600">หาย</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-green-600 font-bold">${stats.found}</div>
+                                    <div class="text-gray-600">พบ</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-blue-600 font-bold">${stats.returned}</div>
+                                    <div class="text-gray-600">คืน</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+                
+                console.log('Statistics loaded successfully');
+                
+            } catch (error) {
+                console.error('Error loading statistics:', error);
+                
+                // Show error state
+                document.getElementById('top-lost-locations').innerHTML = '<p class="text-red-500 text-center py-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+                document.getElementById('monthly-stats').innerHTML = '<p class="text-red-500 text-center py-4">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>';
+            }
+        }
+
+        async function deleteItem(itemId, isTeacher = false) {
+            // Check permissions
+            if (!currentUser) {
+                showNotification('กรุณาเข้าสู่ระบบก่อน', 'error');
+                return;
+            }
+            
+            try {
+                // Get item details first
+                const itemDoc = await db.collection('items').doc(itemId).get();
+                if (!itemDoc.exists) {
+                    showNotification('ไม่พบรายการนี้', 'error');
+                    return;
+                }
+                
+                const item = itemDoc.data();
+                
+                // Check if user has permission to delete
+                if (!isTeacher && item.userId !== currentUser.uid) {
+                    showNotification('คุณไม่มีสิทธิ์ลบรายการนี้', 'error');
+                    return;
+                }
+                
+                if (isTeacher && currentUser.role !== 'teacher') {
+                    showNotification('คุณไม่มีสิทธิ์ครูในการลบรายการ', 'error');
+                    return;
+                }
+                
+                // Confirm deletion
+                const itemName = item.name || 'รายการนี้';
+                if (!confirm(`คุณแน่ใจหรือไม่ที่จะลบ "${itemName}"?\n\nการลบจะไม่สามารถกู้คืนได้`)) {
+                    return;
+                }
+                
+                console.log('Deleting item:', itemId);
+                
+                // Delete the item
+                await db.collection('items').doc(itemId).delete();
+                
+                // Also delete associated chat messages
+                try {
+                    const chatSnapshot = await db.collection('chats').doc(itemId).collection('messages').get();
+                    const batch = db.batch();
+                    
+                    chatSnapshot.docs.forEach(doc => {
+                        batch.delete(doc.ref);
+                    });
+                    
+                    if (!chatSnapshot.empty) {
+                        await batch.commit();
+                        console.log('Chat messages deleted');
+                    }
+                    
+                    // Delete the chat document itself
+                    await db.collection('chats').doc(itemId).delete();
+                    
+                } catch (chatError) {
+                    console.log('Error deleting chat (may not exist):', chatError);
+                }
+                
+                showNotification('ลบรายการสำเร็จ', 'success');
+                
+                // Close modal if it's open for this item
+                if (currentItemId === itemId) {
+                    closeItemModal();
+                }
+                
+                // Refresh the appropriate page
+                if (isTeacher) {
+                    setTimeout(() => {
+                        loadTeacherDashboard();
+                    }, 500);
+                } else {
+                    setTimeout(() => {
+                        loadProfile();
+                    }, 500);
+                }
+                
+                // Also refresh home page statistics if we're on home page
+                if (!document.getElementById('home-page').classList.contains('hidden')) {
+                    setTimeout(() => {
+                        loadRecentItems();
+                        loadStatistics();
+                    }, 500);
+                }
+                
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                
+                let errorMessage = 'เกิดข้อผิดพลาดในการลบรายการ';
+                
+                if (error.code === 'permission-denied') {
+                    errorMessage = 'ไม่มีสิทธิ์ในการลบรายการนี้';
+                } else if (error.code === 'not-found') {
+                    errorMessage = 'ไม่พบรายการที่ต้องการลบ';
+                } else if (error.message) {
+                    errorMessage = `เกิดข้อผิดพลาด: ${error.message}`;
+                }
+                
+                showNotification(errorMessage, 'error');
+            }
+        }
+
+        function refreshData() {
+            loadRecentItems();
+            loadStatistics();
+            if (document.getElementById('all-items-page').classList.contains('hidden') === false) {
+                loadAllItems();
+            }
+            if (currentUser && currentUser.role === 'teacher') {
+                loadTeacherDashboard();
+            }
+            showNotification('รีเฟรชข้อมูลแล้ว', 'info');
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const icon = document.getElementById('notification-icon');
+            const messageEl = document.getElementById('notification-message');
+            
+            messageEl.textContent = message;
+            
+            // Set icon and color based on type
+            switch(type) {
+                case 'success':
+                    icon.className = 'w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-green-100';
+                    icon.innerHTML = '<svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+                    break;
+                case 'error':
+                    icon.className = 'w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-red-100';
+                    icon.innerHTML = '<svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>';
+                    break;
+                default:
+                    icon.className = 'w-8 h-8 rounded-full flex items-center justify-center mr-3 bg-blue-100';
+                    icon.innerHTML = '<svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+            }
+            
+            notification.classList.remove('hidden');
+            
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        // Close dropdowns when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#user-menu')) {
+                document.getElementById('user-dropdown').classList.add('hidden');
+            }
+        });
+
+        // Load initial page
+        showPage('home');
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'976ce367f653a192',t:'MTc1NjQ3OTMxNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
