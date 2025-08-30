@@ -41,9 +41,7 @@
             <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-4">
                     <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-green-500 rounded-full flex items-center justify-center shadow-lg">
-                        <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z"/>
-                        </svg>
+                        <img src="https://raw.githubusercontent.com/LAFA-lostaFound/LAFA.app/refs/heads/main/LOGO.png" />
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold text-gray-800">LAFA</h1>
@@ -468,10 +466,13 @@
                     <!-- User Info -->
                     <div class="bg-white p-6 rounded-xl shadow-lg">
                         <div class="text-center">
-                            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 overflow-hidden" id="profile-image-container">
+                                <img id="profile-image" src="" alt="Profile" class="w-full h-full object-cover hidden">
                                 <span id="profile-initial" class="text-2xl font-bold text-blue-600"></span>
                             </div>
-                            <h3 id="profile-name" class="text-xl font-semibold text-gray-800"></h3>
+                            <input type="file" id="profile-image-upload" accept="image/*" class="mt-2 block mx-auto text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition" onchange="handleProfileImageUpload(this)">
+                            <button onclick="saveProfileImage()" class="mt-3 w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition shadow">บันทึกรูปโปรไฟล์</button>
+                            <h3 id="profile-name" class="text-xl font-semibold text-gray-800 mt-4"></h3>
                             <p id="profile-email" class="text-gray-600"></p>
                             <span id="profile-role" class="inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"></span>
                         </div>
@@ -1706,9 +1707,9 @@
                                 container.innerHTML = `
                                     <div class="flex items-center justify-center h-full">
                                         <div class="text-center">
-                                            <svg class="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                                            </svg>
+                                            <div class="w-14 h-14 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"">
+                                                <img src="https://raw.githubusercontent.com/LAFA-lostaFound/LAFA.app/refs/heads/main/nochat.png" />
+                                            </div>    
                                             <p class="text-gray-500 text-sm mb-2">ยังไม่มีข้อความ</p>
                                             <p class="text-gray-400 text-xs">เริ่มสนทนากันเลย! 💬</p>
                                         </div>
@@ -1971,7 +1972,6 @@
 
         async function loadProfile() {
             if (!currentUser) return;
-            
             document.getElementById('profile-name').textContent = currentUser.name;
             document.getElementById('profile-email').textContent = currentUser.email;
             document.getElementById('profile-initial').textContent = currentUser.name.charAt(0).toUpperCase();
@@ -1982,6 +1982,17 @@
                 'inline-block mt-2 px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm' :
                 'inline-block mt-2 px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm';
             
+            // Show profile image if exists
+            const img = document.getElementById('profile-image');
+            if (currentUser.profileImage) {
+                img.src = currentUser.profileImage;
+                img.classList.remove('hidden');
+                document.getElementById('profile-initial').classList.add('hidden');
+            } else {
+                img.classList.add('hidden');
+                document.getElementById('profile-initial').classList.remove('hidden');
+            }
+
             try {
                 console.log('Loading profile items for user:', currentUser.uid);
                 
@@ -2458,6 +2469,35 @@
             }, 3000);
         }
 
+        function handleProfileImageUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('profile-image');
+                img.src = e.target.result;
+                img.classList.remove('hidden');
+                document.getElementById('profile-initial').classList.add('hidden');
+                input.dataset.base64 = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function saveProfileImage() {
+            const input = document.getElementById('profile-image-upload');
+            const base64 = input.dataset.base64;
+            if (!base64 || !currentUser) {
+                showNotification('กรุณาเลือกรูปภาพก่อน', 'error');
+                return;
+            }
+            try {
+                await db.collection('users').doc(currentUser.uid).update({ profileImage: base64 });
+                showNotification('บันทึกรูปโปรไฟล์สำเร็จ', 'success');
+                loadProfile();
+            } catch (error) {
+                showNotification('เกิดข้อผิดพลาดในการบันทึกรูปโปรไฟล์', 'error');
+            }
+        }
 
         // Close dropdowns when clicking outside
         document.addEventListener('click', function(e) {
