@@ -1473,6 +1473,7 @@
                         ${containerId === 'user-items' ? `
                         <div class="flex space-x-2 mt-3 pt-3 border-t border-gray-100">
                             <button onclick="showItemDetail('${item.id}')" class="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 transition">ดูรายละเอียด</button>
+                            ${item.status !== 'returned' ? `<button onclick="markAsReturned('${item.id}')" class="px-3 py-2 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition">คืนแล้ว</button>` : ''}
                             <button onclick="deleteItem('${item.id}', false)" class="px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition">ลบ</button>
                         </div>
                         ` : ''}
