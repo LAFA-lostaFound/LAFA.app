@@ -282,7 +282,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
                                 <p class="text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ</p>
-                                <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 1MB)</p>
+                                <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 800KB)</p>
                             </div>
                             <div id="lost-image-preview" class="hidden w-full h-32 border-2 border-gray-300 rounded-lg overflow-hidden relative">
                                 <img class="w-full h-full object-cover" alt="Preview">
@@ -367,7 +367,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                                 </svg>
                                 <p class="text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ</p>
-                                <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 1MB)</p>
+                                <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 800KB)</p>
                             </div>
                             <div id="found-image-preview" class="hidden w-full h-32 border-2 border-gray-300 rounded-lg overflow-hidden relative">
                                 <img class="w-full h-full object-cover" alt="Preview">
@@ -1016,9 +1016,9 @@
                     return;
                 }
                 
-                // Check file size (max 1MB for base64 storage)
+                // Check file size (max 800KB for base64 storage)
                 if (file.size > 1 * 1024 * 1024) {
-                    reject(new Error('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 1MB สำหรับการเก็บใน Firestore'));
+                    reject(new Error('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 800KB สำหรับการเก็บใน Firestore'));
                     return;
                 }
                 
@@ -1072,7 +1072,7 @@
             
             // Check file size before processing
             if (file.size > 1 * 1024 * 1024) {
-                showNotification('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 1MB', 'error');
+                showNotification('ไฟล์รูปภาพต้องมีขนาดไม่เกิน 800KB', 'error');
                 input.value = '';
                 return;
             }
@@ -1118,7 +1118,7 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
                         </svg>
                         <p class="text-sm text-gray-500">คลิกเพื่อเลือกรูปภาพ</p>
-                        <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 1MB)</p>
+                        <p class="text-xs text-gray-400 mt-1">รองรับ JPG, PNG, GIF, WebP (สูงสุด 800KB)</p>
                     `;
                 }
                 
@@ -1194,7 +1194,7 @@
                 
                 // Add image only if it exists and is not too large
                 if (imageBase64) {
-                    // Check base64 size (Firestore has 1MB document limit)
+                    // Check base64 size (Firestore has 800KB document limit)
                     const sizeInBytes = new Blob([imageBase64]).size;
                     if (sizeInBytes > 800000) { // Leave some room for other data
                         showNotification('รูปภาพมีขนาดใหญ่เกินไป กรุณาเลือกรูปที่เล็กกว่า', 'error');
@@ -1289,7 +1289,7 @@
                 
                 // Add image only if it exists and is not too large
                 if (imageBase64) {
-                    // Check base64 size (Firestore has 1MB document limit)
+                    // Check base64 size (Firestore has 800KB document limit)
                     const sizeInBytes = new Blob([imageBase64]).size;
                     if (sizeInBytes > 800000) { // Leave some room for other data
                         showNotification('รูปภาพมีขนาดใหญ่เกินไป กรุณาเลือกรูปที่เล็กกว่า', 'error');
