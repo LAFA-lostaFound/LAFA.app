@@ -1487,14 +1487,12 @@
                 const statusFilter = document.getElementById('status-filter').value;
                 const categoryFilter = document.getElementById('category-filter').value;
                 
-                let query = db.collection('items').orderBy('createdAt', 'desc');
+                let query = db.collection('items');
                 
                 // Apply filters
                 if (statusFilter) {
                     query = query.where('status', '==', statusFilter);
-                }
-                
-                if (categoryFilter) {
+                } else if (categoryFilter) {
                     query = query.where('category', '==', categoryFilter);
                 }
                 
@@ -1504,6 +1502,11 @@
                     ...doc.data()
                 }));
                 
+                // Client-side filter for category if both filters are set
+                if (statusFilter && categoryFilter) {
+                 items = items.filter(item => item.category === categoryFilter);
+                }
+
                 // Apply search filter (client-side for now)
                 if (searchTerm) {
                     items = items.filter(item => {
@@ -1513,6 +1516,13 @@
                     });
                 }
                 
+                // Sort by date client-side
+                items.sort((a, b) => {
+                    const dateA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const dateB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return dateB - dateA;
+                });
+
                 renderItemList('items-grid', items, true);
             } catch (error) {
                 console.error('Error filtering items:', error);
