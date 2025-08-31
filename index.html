@@ -62,7 +62,8 @@
                     </div>
                     <div id="user-menu" class="hidden relative">
                         <button onclick="toggleUserMenu()" class="flex items-center space-x-2 text-gray-700 hover:text-blue-600">
-                            <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                            <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-blue-100">
+                                <img id="user-profile-image" src="https://raw.githubusercontent.com/LAFA-lostaFound/LAFA.app/refs/heads/main/noprofile.PNG" alt="Profile" class="w-full h-full object-cover hidden">
                                 <span id="user-initial" class="text-blue-600 font-semibold"></span>
                             </div>
                             <span id="user-name"></span>
@@ -840,6 +841,19 @@
                     document.getElementById('dashboard-dropdown').classList.remove('hidden');
                 } else {
                     document.getElementById('dashboard-dropdown').classList.add('hidden');
+                }
+
+                // Show profile image in header
+                const img = document.getElementById('user-profile-image');
+                const initial = document.getElementById('user-initial');
+                if (currentUser.profileImage) {
+                    img.src = currentUser.profileImage;
+                    img.classList.remove('hidden');
+                    initial.classList.add('hidden');
+                } else {
+                    img.src = "https://raw.githubusercontent.com/LAFA-lostaFound/LAFA.app/refs/heads/main/noprofile.PNG";
+                    img.classList.remove('hidden');
+                    initial.classList.add('hidden');
                 }
             } else {
                 document.getElementById('auth-section').classList.remove('hidden');
@@ -1989,8 +2003,9 @@
                 img.classList.remove('hidden');
                 document.getElementById('profile-initial').classList.add('hidden');
             } else {
-                img.classList.add('hidden');
-                document.getElementById('profile-initial').classList.remove('hidden');
+                img.src = "https://raw.githubusercontent.com/LAFA-lostaFound/LAFA.app/refs/heads/main/noprofile.PNG";
+                img.classList.remove('hidden');
+                document.getElementById('profile-initial').classList.add('hidden');
             }
 
             try {
