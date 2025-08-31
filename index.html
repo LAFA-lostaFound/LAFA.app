@@ -955,7 +955,7 @@
             const password = document.getElementById('auth-password').value;
             const name = document.getElementById('auth-name').value;
             const role = document.getElementById('auth-role').value;
-            
+
             try {
                 if (authMode === 'login') {
                     // Login with Firebase Auth
@@ -987,6 +987,7 @@
                 switch (error.code) {
                     case 'auth/user-not-found':
                     case 'auth/wrong-password':
+                    case 'auth/invalid-credential':
                         errorMessage = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
                         break;
                     case 'auth/email-already-in-use':
