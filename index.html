@@ -768,6 +768,60 @@
         let currentItemId = null;
         let chatListener = null;
 
+        async function setupChatNotifications() {
+            if (!currentUser) return;
+
+            // 1. Get all items the user owns
+            const ownedItemsSnapshot = await db.collection('items')
+                .where('userId', '==', currentUser.uid)
+                .get();
+            const ownedItemIds = ownedItemsSnapshot.docs.map(doc => doc.id);
+
+            // 2. Get all items the user has responded to (sent a chat message)
+            const respondedItemIds = new Set();
+            const chatsSnapshot = await db.collection('chats').get();
+            for (const chatDoc of chatsSnapshot.docs) {
+                const messagesSnapshot = await db.collection('chats')
+                    .doc(chatDoc.id)
+                    .collection('messages')
+                    .where('userId', '==', currentUser.uid)
+                    .get();
+                if (!messagesSnapshot.empty) {
+                    respondedItemIds.add(chatDoc.id);
+                }
+            }
+
+            // Combine both sets of item IDs
+            const watchItemIds = Array.from(new Set([...ownedItemIds, ...respondedItemIds]));
+
+            // 3. Listen for new messages in those items
+            watchItemIds.forEach(itemId => {
+                db.collection('chats')
+                    .doc(itemId)
+                    .collection('messages')
+                    .orderBy('createdAt', 'desc')
+                    .limit(1)
+                    .onSnapshot(snapshot => {
+                        snapshot.docChanges().forEach(change => {
+                            if (change.type === 'added') {
+                                const msg = change.doc.data();
+                                // Don't notify for own messages
+                                if (msg.userId !== currentUser.uid) {
+                                    db.collection('items').doc(itemId).get().then(itemDoc => {
+                                    const itemName = itemDoc.exists ? itemDoc.data().name : itemId;
+                                    showNotification(
+                                        `มีข้อความใหม่ในรายการ "${itemName}" จาก ${msg.userName}: "${msg.message}"`,
+                                        'info'
+                                        );
+                                    });
+                                }
+                            }
+                        });
+                    });
+            });
+        }
+
+
         // Initialize app
         document.addEventListener('DOMContentLoaded', function() {
             setupEventListeners();
@@ -796,6 +850,7 @@
                             await db.collection('users').doc(user.uid).set(currentUser);
                         }
                         updateAuthUI();
+                        setupChatNotifications();
                         loadRecentItems();
                     } catch (error) {
                         console.error('Error loading user data:', error);
@@ -2524,6 +2579,65 @@
 
         // Load initial page
         showPage('home');
+        
     </script>
+
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+    <script>
+        // Enable Firebase Cloud Messaging notifications (no new file needed)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register(URL.createObjectURL(new Blob([`
+                importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js');
+                importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js');
+                firebase.initializeApp({
+                    apiKey: "AIzaSyAsWIFGlCuCo1aXTc0GZzYZGYZzH-3p6Es",
+                    authDomain: "lafa-database.firebaseapp.com",
+                    projectId: "lafa-database",
+                    storageBucket: "lafa-database.firebasestorage.app",
+                    messagingSenderId: "761007020068",
+                    appId: "1:761007020068:web:017b1fdced5dbe7441e0b1",
+                    measurementId: "G-HS8ENRDSVG"
+                });
+                const messaging = firebase.messaging();
+                messaging.onBackgroundMessage(function(payload) {
+                    const { title, body } = payload.notification;
+                    self.registration.showNotification(title, {
+                        body: body,
+                        icon: '/LOGO.png'
+                    });
+                });
+            `], { type: 'application/javascript' })))
+            .then(function(registration) {
+                const messaging = firebase.messaging();
+                messaging.useServiceWorker(registration);
+
+                Notification.requestPermission().then(function(permission) {
+                    if (permission === 'granted') {
+                        messaging.getToken({
+                            vapidKey: 'BBtxs9qDK2ZESuFhPVX5w2kQcJY5S5lQhd3-bSYX89vZ_GEs6JJO4MOYYl_WdOzmbfeVLwwysCn5tMZEEgybMYQ'
+                        }).then(function(token) {
+                            console.log('FCM Token:', token);
+                            showNotification('เปิดการแจ้งเตือนสำเร็จ', 'success');
+                        }).catch(function(err) {
+                            console.error('FCM Token error:', err);
+                            showNotification('เกิดข้อผิดพลาดในการรับโทเคนแจ้งเตือน', 'error');
+                        });
+                    } else {
+                        showNotification('ไม่ได้รับอนุญาตให้แจ้งเตือน', 'error');
+                    }
+                });
+
+                messaging.onMessage(function(payload) {
+                    const { title, body } = payload.notification;
+                    showNotification(`${title}: ${body}`, 'info');
+                });
+            })
+            .catch(function(error) {
+                console.error('Service Worker registration failed:', error);
+                showNotification('เกิดข้อผิดพลาดในการเปิดแจ้งเตือน', 'error');
+            });
+        }
+    </script>
+
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'976ce367f653a192',t:'MTc1NjQ3OTMxNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
