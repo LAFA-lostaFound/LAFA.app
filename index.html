@@ -2625,8 +2625,6 @@
                     } else {
                         showNotification('ไม่ได้รับอนุญาตให้แจ้งเตือน', 'error');
                     }
-                }).catch(function(err) {
-                    console.error('Notification permission error:', err);
                 });
 
                 messaging.onMessage(function(payload) {
@@ -2638,8 +2636,6 @@
                 console.error('Service Worker registration failed:', error);
                 showNotification('เกิดข้อผิดพลาดในการเปิดแจ้งเตือน', 'error');
             });
-        } else {
-         console.log('Service worker not supported on this browser/device');
         }
     </script>
 
